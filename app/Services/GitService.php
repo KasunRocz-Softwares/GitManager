@@ -47,6 +47,7 @@ class GitService
     public function checkoutBranch($branchName)
     {
         $this->runCommand("git fetch");
+        $this->runCommand("git reset --hard");
         $this->runCommand("git checkout $branchName");
         $this->runCommand("git pull");
         return $this->runCommand('git branch --show-current');
