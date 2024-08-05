@@ -42,7 +42,7 @@ use Illuminate\Http\Request;
     public function checkoutBranch(Request $request, $repoId): \Illuminate\Http\JsonResponse
     {
         $this->initializeGitService($repoId);
-        $branchName = $request->input('branchName');
+        $branchName = $request->input('branch_name');
 
         try {
             $checkout_branch = $this->gitService->checkoutBranch($branchName);
