@@ -9,7 +9,7 @@ Route::view('profile', 'profile')
 
 
 Route::middleware(['auth', 'verified'])->group(function (){
-    Route::view('/', 'dashboard')->name('dashboard');
+    Route::view('/', 'git-functions');
     Route::view('/projects', 'projects')->name('projects');
     Route::view('/repositories','repositories')->name('repositories');
     Route::view('git','git-functions')->name('git-functions');
