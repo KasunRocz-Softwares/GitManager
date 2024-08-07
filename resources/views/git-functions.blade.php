@@ -189,7 +189,7 @@
                 const result = await response.json();
 
                 if (response.ok) {
-                    showMessage('Commands executed successfully', 'success');
+                    showMessage(result.message, 'success');
                 } else {
                     showMessage(result.message || 'Error executing commands', 'error');
                 }

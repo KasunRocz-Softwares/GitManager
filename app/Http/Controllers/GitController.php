@@ -63,7 +63,7 @@ use Illuminate\Http\Request;
 
         try {
             $output = $this->gitService->runMultipleCommands($commands);
-            return response()->json(['output' => $output], 200);
+            return response()->json(['message' => $output], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
