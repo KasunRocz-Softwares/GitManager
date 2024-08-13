@@ -9,6 +9,10 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::controller(\App\Http\Controllers\Auth\AuthController::class)->group(function (){
+    Route::post('login','login')->name('login');
+});
+
 
 Route::apiResource('repositories', RepositoryController::class);
 
@@ -27,5 +31,6 @@ Route::controller(ProjectController::class)->prefix('projects')
          Route::get('branches','listBranches');
          Route::post('checkout','checkoutBranch');
          Route::post('run-commands','runMultipleCommands');
+         Route::get('current-branch','currentBranch');
      });
 

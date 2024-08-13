@@ -67,4 +67,12 @@ class GitService
             return str_replace('* ', '', $branch);
         }, $branches);
     }
+
+    /**
+     * @throws \Exception
+     */
+    public function currentBranch(): bool|string
+    {
+        return $this->runCommand('git branch --show-current');
+    }
 }

@@ -69,4 +69,15 @@ use Illuminate\Http\Request;
         }
     }
 
+    public function currentBranch($repoId): \Illuminate\Http\JsonResponse
+    {
+        $this->initializeGitService($repoId);
+        try {
+            $branches = $this->gitService->currentBranch();
+            return response()->json(['currentBranch'=>$branches], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
 }
