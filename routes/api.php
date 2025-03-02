@@ -18,9 +18,10 @@ Route::controller(\App\Http\Controllers\Auth\AuthController::class)->group(funct
 
 Route::middleware('auth:api')->apiResource('repositories', RepositoryController::class);
 
-Route::controller(DashboardController::class)->middleware('auth:api')
+Route::controller(DashboardController::class)->middleware('auth:api')->prefix('dashboard')
 ->group(function (){
-    Route::get('dashboard','dashboard');
+    Route::get('/','dashboard');
+    Route::get('activity-chart','activityChart');
 });
 
 Route::controller(ProjectController::class)->middleware('auth:api')->prefix('projects')
