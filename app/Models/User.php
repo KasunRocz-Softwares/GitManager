@@ -20,6 +20,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'is_active'
     ];
 
     /**
@@ -44,5 +45,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    
+
+    public function repositories()
+    {
+        return $this->belongsToMany(Repository::class, 'user_repositories');
+    }
 }
