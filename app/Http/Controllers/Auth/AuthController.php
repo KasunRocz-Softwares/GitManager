@@ -34,7 +34,7 @@ class AuthController extends Controller
 //            'isRemember'=>$request->isRemember
         ];
 
-        if(Auth::attempt(['email'=>$request->email,'password'=>$request->password])){
+        if(Auth::attempt(['email'=>$request->email,'password'=>$request->password, 'is_active'=> true])){
             $user = Auth::user();
             $token = $user->createToken('MyAppToken')->accessToken;
 
