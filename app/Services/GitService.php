@@ -39,18 +39,18 @@ class GitService
 
     public function listBranches()
     {
-        $this->runCommand("git fetch");
-        $branchesOutput = $this->runCommand("git branch -l");
+        $this->runCommand("sudo git fetch");
+        $branchesOutput = $this->runCommand("sudo git branch -l");
         return $this->parseBranches($branchesOutput);
     }
 
     public function checkoutBranch($branchName)
     {
-        $this->runCommand("git fetch");
-        $this->runCommand("git reset --hard");
-        $this->runCommand("git checkout $branchName");
-        $this->runCommand("git pull");
-        return $this->runCommand('git branch --show-current');
+        $this->runCommand("sudo git fetch");
+        $this->runCommand("sudo git reset --hard");
+        $this->runCommand("sudo git checkout $branchName");
+        $this->runCommand("sudo git pull");
+        return $this->runCommand('sudo git branch --show-current');
     }
 
     public function runMultipleCommands(array $commands)
@@ -73,6 +73,6 @@ class GitService
      */
     public function currentBranch(): bool|string
     {
-        return $this->runCommand('git branch --show-current');
+        return $this->runCommand('sudo git branch --show-current');
     }
 }

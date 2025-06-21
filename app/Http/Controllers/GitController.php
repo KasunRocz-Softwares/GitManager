@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use AllowDynamicProperties;
+use App\Models\RepoActivityLog;
 use App\Models\Repository;
 use App\Services\GitService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 #[AllowDynamicProperties] class GitController extends Controller
 {
@@ -43,7 +45,7 @@ use Illuminate\Http\Request;
     {
         $this->initializeGitService($repoId);
         $branchName = $request->input('branch_name');
-
+        RepoActivityLog::makeRepoLogs(Auth::id(), $repoId, 'git-checkout', $branchName);
         try {
             $checkout_branch = $this->gitService->checkoutBranch($branchName);
             return response()->json(['message' => 'Branch checked out successfully.','branch' => $checkout_branch], 200);
@@ -56,7 +58,7 @@ use Illuminate\Http\Request;
     {
         $this->initializeGitService($repoId);
         $commands = $request->input('commands');
-
+        RepoActivityLog::makeRepoLogs(Auth::id(), $repoId, 'run-command', json_encode($commands));
         if (!is_array($commands)) {
             return response()->json(['error' => 'Commands should be an array.'], 400);
         }
