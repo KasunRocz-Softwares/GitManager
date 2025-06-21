@@ -201,7 +201,9 @@ class GitController extends BaseController
     }
 
     /**
-     * Upload and deploy a dist folder to a repository.
+     * Upload a dist folder to a repository.
+     * This method extracts the uploaded archive and copies its contents to the dist folder
+     * in the repository path. No git operations are performed.
      *
      * @param Request $request HTTP request
      * @param int $repoId Repository ID
@@ -226,7 +228,7 @@ class GitController extends BaseController
             $validated = $request->validate([
                 'dist_folder' => 'required|file|mimes:zip,rar,tar,gz|max:50000', // 50MB max
                 'commit_message' => 'required|string|max:255',
-                'branch' => 'required|string|max:100',
+                'branch' => 'nullable|string|max:100', // Branch is optional now
             ]);
 
             // Create temporary directory
@@ -246,9 +248,9 @@ class GitController extends BaseController
                 $validated['commit_message']
             );
 
-            // Run git commands to push the dist folder
+            // Run commands to copy the dist folder
             $commands = $this->buildDistFolderCommands(
-                $validated['branch'],
+                $validated['branch'] ?? 'main', // Default to 'main' if branch is not provided
                 $extractPath,
                 $validated['commit_message']
             );
@@ -260,7 +262,7 @@ class GitController extends BaseController
 
             return $this->successResponse(
                 ['output' => $output],
-                'Dist folder uploaded and pushed successfully'
+                'Dist folder uploaded successfully'
             );
         } catch (Exception $e) {
             // Clean up temporary files if they exist
@@ -363,25 +365,22 @@ class GitController extends BaseController
     }
 
     /**
-     * Build Git commands to update the dist folder.
+     * Build commands to update the dist folder.
+     * This method creates commands to remove the existing dist folder,
+     * create a new one, and copy the extracted files to it.
+     * No git operations are performed.
      *
-     * @param string $branch Branch name
+     * @param string $branch Branch name (not used, kept for backward compatibility)
      * @param string $extractPath Path to extracted files
-     * @param string $commitMessage Commit message
-     * @return array Array of Git commands
+     * @param string $commitMessage Commit message (not used, kept for backward compatibility)
+     * @return array Array of commands
      */
     protected function buildDistFolderCommands(string $branch, string $extractPath, string $commitMessage): array
     {
         return [
-            "sudo git fetch",
-            "sudo git checkout " . escapeshellarg($branch),
-            "sudo git pull",
             "sudo rm -rf dist",  // Remove existing dist folder
             "sudo mkdir -p dist", // Create new dist folder
-            "sudo cp -r " . escapeshellarg($extractPath) . "/* dist/", // Copy extracted files to dist folder
-            "sudo git add dist",
-            "sudo git commit -m " . escapeshellarg($commitMessage),
-            "sudo git push origin " . escapeshellarg($branch)
+            "sudo cp -r " . escapeshellarg($extractPath) . "/* dist/" // Copy extracted files to dist folder
         ];
     }
 
