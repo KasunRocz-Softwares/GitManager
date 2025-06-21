@@ -52,5 +52,5 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
          Route::post('checkout','checkoutBranch');
          Route::post('run-commands','runMultipleCommands');
          Route::get('current-branch','currentBranch');
+         Route::post('upload-dist','uploadDistFolder');
      });
-

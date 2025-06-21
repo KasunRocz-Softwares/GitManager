@@ -30,6 +30,24 @@
                             <x-text-input id="url" name="repo_path" type="text" class="mt-1 block w-full" required />
                         </div>
 
+                        <div>
+                            <x-input-label for="code_base_type" :value="__('Code Base Type')" />
+                            <select id="code_base_type" name="code_base_type" class="mt-1 block w-full text-black" required>
+                                <option value="Laravel" selected>Laravel</option>
+                                <option value="NodeJS">NodeJS</option>
+                                <option value="React/Vue">React/Vue</option>
+                            </select>
+                        </div>
+
+                        <div id="dist_folder_container" style="display: none;">
+                            <div class="flex items-center">
+                                <input id="has_dist_folder" name="has_dist_folder" type="checkbox" class="rounded border-gray-300 text-indigo-600 shadow-sm focus:ring-indigo-500" value="1">
+                                <label for="has_dist_folder" class="ml-2 block text-sm text-gray-900 dark:text-gray-100">
+                                    {{ __('Upload dist folder and push to server') }}
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="flex items-center gap-4">
                             <x-primary-button type="button" onclick="submitForm()">{{ __('Save') }}</x-primary-button>
                         </div>
@@ -54,6 +72,19 @@
         document.addEventListener('DOMContentLoaded', () => {
             fetchProjects();
             fetchRepositories();
+
+            // Handle code base type change
+            document.getElementById('code_base_type').addEventListener('change', function() {
+                const codeBaseType = this.value;
+                const distFolderContainer = document.getElementById('dist_folder_container');
+
+                if (codeBaseType === 'NodeJS' || codeBaseType === 'React/Vue') {
+                    distFolderContainer.style.display = 'block';
+                } else {
+                    distFolderContainer.style.display = 'none';
+                    document.getElementById('has_dist_folder').checked = false;
+                }
+            });
 
             // Handle form submission
             window.submitForm = async () => {
@@ -128,6 +159,9 @@
                     <li class="border p-4 rounded">
                         <h4 class="font-semibold text-gray-800 dark:text-gray-200">${repository.name}</h4>
                         <p class="text-gray-600 dark:text-gray-400">${repository.repo_path}</p>
+                        <p class="text-gray-600 dark:text-gray-400">Type: ${repository.code_base_type || 'Laravel'}</p>
+                        ${(repository.code_base_type === 'NodeJS' || repository.code_base_type === 'React/Vue') && repository.has_dist_folder ?
+                            `<p class="text-green-600 dark:text-green-400">Dist folder enabled</p>` : ''}
                     </li>
                 `).join('');
             }
@@ -139,6 +173,9 @@
                         <li class="border p-4 rounded">
                             <h4 class="font-semibold text-gray-800 dark:text-gray-200">${repository.name}</h4>
                             <p class="text-gray-600 dark:text-gray-400">${repository.repo_path}</p>
+                            <p class="text-gray-600 dark:text-gray-400">Type: ${repository.code_base_type || 'Laravel'}</p>
+                            ${(repository.code_base_type === 'NodeJS' || repository.code_base_type === 'React/Vue') && repository.has_dist_folder ?
+                                `<p class="text-green-600 dark:text-green-400">Dist folder enabled</p>` : ''}
                         </li>
                     `;
                 }
