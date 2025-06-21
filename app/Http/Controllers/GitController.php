@@ -696,4 +696,43 @@ class GitController extends BaseController
             default => 'Unknown upload error',
         };
     }
+
+    /**
+     * Build commands for handling dist folder operations.
+     * This method generates Git commands to checkout a branch, copy files to the dist folder,
+     * add changes to Git, and commit them.
+     *
+     * @param string $branch Branch name to checkout
+     * @param string $extractPath Path to extracted files
+     * @param string $commitMessage Commit message
+     * @return array Array of commands to execute
+     */
+    protected function buildDistFolderCommands(string $branch, string $extractPath, string $commitMessage): array
+    {
+        // Prepare the source directory
+        $sourceDir = $this->prepareSourceDirectory($extractPath);
+
+        // Build the commands array
+        $commands = [
+            // Checkout the specified branch
+            "git checkout {$branch}",
+
+            // Remove existing dist folder if it exists
+            "rm -rf dist",
+
+            // Create dist folder
+            "mkdir -p dist",
+
+            // Copy files from the extracted directory to the dist folder
+            "cp -r {$sourceDir}/* dist/",
+
+            // Add the dist folder to git
+            "git add dist",
+
+            // Commit the changes
+            "git commit -m " . escapeshellarg($commitMessage)
+        ];
+
+        return $commands;
+    }
 }
