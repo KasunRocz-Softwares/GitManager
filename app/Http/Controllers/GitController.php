@@ -588,7 +588,7 @@ class GitController extends BaseController
      * @return string Success message
      * @throws Exception If upload fails
      */
-    protected function uploadDistFolder(string $extractPath): string
+    protected function uploadDistFolderViaSFTP(string $extractPath): string
     {
         // Prepare the source directory
         $sourceDir = $this->prepareSourceDirectory($extractPath);
