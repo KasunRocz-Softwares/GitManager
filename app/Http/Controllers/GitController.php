@@ -234,11 +234,27 @@ class GitController extends BaseController
             // Create temporary directory
             $tempDir = $this->createTempDirectory();
 
-            // Extract the uploaded file
-            $extractPath = $this->extractUploadedFile(
-                $request->file('dist_folder'),
-                $tempDir
-            );
+            try {
+                // Extract the uploaded file
+                $extractPath = $this->extractUploadedFile(
+                    $request->file('dist_folder'),
+                    $tempDir
+                );
+            } catch (Exception $extractException) {
+                // Clean up temporary files if they exist
+                if ($tempDir && file_exists($tempDir)) {
+                    $this->cleanupTempDirectory($tempDir);
+                }
+
+                // Log the extraction error
+                Log::error("Dist folder extraction failed: {$extractException->getMessage()}", [
+                    'file_type' => $request->file('dist_folder')->getClientOriginalExtension(),
+                    'file_name' => $request->file('dist_folder')->getClientOriginalName(),
+                    'file_size' => $request->file('dist_folder')->getSize()
+                ]);
+
+                return $this->errorResponse("Failed to extract dist folder archive: {$extractException->getMessage()}", 500, $extractException);
+            }
 
             // Log the activity
             RepoActivityLog::makeRepoLogs(
@@ -350,17 +366,55 @@ class GitController extends BaseController
      */
     protected function extractArchiveFile(string $filePath, string $extractPath, string $extension): void
     {
-        $command = match (strtolower($extension)) {
+        $extension = strtolower($extension);
+
+        // Check if RAR and if unrar is available
+        if ($extension === 'rar') {
+            // Check if unrar command is available (works on both Linux and Windows)
+            exec('unrar 2>&1', $unrarOutput, $unrarReturnCode);
+
+            if ($unrarReturnCode === 127) { // Command not found
+                // Log the error for server administrators
+                Log::error("The unrar command is not available on this server. RAR extraction will fail.");
+
+                // TODO: Consider adding a PHP library for RAR extraction as a fallback
+                // For example: nelexa/zip (https://github.com/Ne-Lexa/php-zip)
+                // This would require adding the library to composer.json and implementing the extraction here
+
+                throw new Exception('The unrar command is not available on this server. Please install it using: sudo apt-get install unrar (Linux) or download from rarlab.com (Windows)');
+            }
+        }
+
+        $command = match ($extension) {
             'tar' => "tar -xf " . escapeshellarg($filePath) . " -C " . escapeshellarg($extractPath),
             'gz', 'tgz' => "tar -xzf " . escapeshellarg($filePath) . " -C " . escapeshellarg($extractPath),
             'rar' => "unrar x " . escapeshellarg($filePath) . " " . escapeshellarg($extractPath),
             default => throw new Exception('Unsupported archive format: ' . $extension),
         };
 
+        // Log the command being executed for debugging purposes
+        Log::info("Executing archive extraction command: " . preg_replace('/\s+/', ' ', $command));
+
         exec($command, $output, $returnCode);
 
         if ($returnCode !== 0) {
-            throw new Exception('Failed to extract archive: ' . implode("\n", $output));
+            $errorMessage = implode("\n", $output);
+            Log::error("Archive extraction failed: " . $errorMessage);
+
+            if ($extension === 'rar') {
+                // Provide more specific error message for RAR files
+                if (empty($errorMessage)) {
+                    $errorMessage = "Unknown error occurred during RAR extraction. Please check if the RAR file is valid and not corrupted.";
+                } elseif (strpos($errorMessage, 'not found') !== false || strpos($errorMessage, 'No such file') !== false) {
+                    $errorMessage = "The RAR file could not be found or accessed.";
+                } elseif (strpos($errorMessage, 'permission') !== false) {
+                    $errorMessage = "Permission denied when trying to extract the RAR file. Please check file permissions.";
+                } elseif (strpos($errorMessage, 'corrupt') !== false || strpos($errorMessage, 'CRC failed') !== false) {
+                    $errorMessage = "The RAR file appears to be corrupted or incomplete.";
+                }
+            }
+
+            throw new Exception('Failed to extract archive: ' . $errorMessage);
         }
     }
 
