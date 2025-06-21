@@ -50,6 +50,10 @@ class RepositoryController extends BaseController
                 'repositories.id',
                 'repositories.name as repository_name',
                 'repositories.access_url',
+                'repositories.repo_path',
+                'repositories.project_id',
+                'repositories.has_dist_folder',
+                'repositories.code_base_type',
                 'projects.name as project_name'
             )
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id');
