@@ -231,6 +231,25 @@ class GitController extends BaseController
                 'branch' => 'nullable|string|max:100', // Branch is optional now
             ]);
 
+            // Additional validation for the uploaded file
+            $uploadedFile = $request->file('dist_folder');
+            if (!$uploadedFile) {
+                return $this->errorResponse('No file was uploaded or the upload failed', 400);
+            }
+
+            if (!$uploadedFile->isValid()) {
+                $errorMessage = $uploadedFile->getError()
+                    ? 'Upload error: ' . $this->getUploadErrorMessage($uploadedFile->getError())
+                    : 'The uploaded file is not valid';
+
+                Log::error('Invalid upload file', [
+                    'error_code' => $uploadedFile->getError(),
+                    'error_message' => $errorMessage
+                ]);
+
+                return $this->errorResponse($errorMessage, 400);
+            }
+
             // Create temporary directory
             $tempDir = $this->createTempDirectory();
 
@@ -247,11 +266,24 @@ class GitController extends BaseController
                 }
 
                 // Log the extraction error
-                Log::error("Dist folder extraction failed: {$extractException->getMessage()}", [
-                    'file_type' => $request->file('dist_folder')->getClientOriginalExtension(),
-                    'file_name' => $request->file('dist_folder')->getClientOriginalName(),
-                    'file_size' => $request->file('dist_folder')->getSize()
-                ]);
+                $uploadedFile = $request->file('dist_folder');
+                $logData = ['error' => $extractException->getMessage()];
+
+                // Only try to access file properties if the file object exists and is valid
+                if ($uploadedFile && $uploadedFile->isValid()) {
+                    try {
+                        $logData['file_type'] = $uploadedFile->getClientOriginalExtension();
+                        $logData['file_name'] = $uploadedFile->getClientOriginalName();
+                        $logData['file_size'] = $uploadedFile->getSize();
+                    } catch (Exception $fileException) {
+                        // If we can't access file properties, log that separately
+                        Log::warning("Could not access uploaded file properties: {$fileException->getMessage()}");
+                    }
+                } else {
+                    $logData['file_status'] = 'File is not valid or no longer accessible';
+                }
+
+                Log::error("Dist folder extraction failed", $logData);
 
                 return $this->errorResponse("Failed to extract dist folder archive: {$extractException->getMessage()}", 500, $extractException);
             }
@@ -317,15 +349,56 @@ class GitController extends BaseController
      */
     protected function extractUploadedFile($file, string $tempDir): string
     {
-        $fileName = $file->getClientOriginalName();
-        $file->move($tempDir, $fileName);
+        // Validate the uploaded file
+        if (!$file || !$file->isValid()) {
+            throw new Exception("Invalid or corrupted upload file. Please try uploading again.");
+        }
 
+        // Get file details before moving it
+        try {
+            $fileName = $file->getClientOriginalName();
+            $fileSize = $file->getSize();
+            $fileExtension = $file->getClientOriginalExtension();
+
+            // Log file details for debugging
+            Log::info("Processing uploaded file", [
+                'name' => $fileName,
+                'size' => $fileSize,
+                'extension' => $fileExtension
+            ]);
+
+            // Check if file size is zero
+            if ($fileSize <= 0) {
+                throw new Exception("Uploaded file is empty (0 bytes). Please check the file and try again.");
+            }
+        } catch (Exception $e) {
+            throw new Exception("Failed to read upload file details: " . $e->getMessage());
+        }
+
+        // Move the file to the temporary directory
+        try {
+            $file->move($tempDir, $fileName);
+        } catch (Exception $e) {
+            throw new Exception("Failed to move uploaded file to temporary directory: " . $e->getMessage());
+        }
+
+        // Create extraction directory
         $extractPath = $tempDir . '/extracted';
         if (!mkdir($extractPath, 0777, true)) {
             throw new Exception("Failed to create extraction directory: {$extractPath}");
         }
 
+        // Verify the file was moved successfully and exists
         $filePath = $tempDir . '/' . $fileName;
+        if (!file_exists($filePath)) {
+            throw new Exception("File not found after moving to temporary directory: {$filePath}");
+        }
+
+        // Get file size after moving to verify it's not corrupted
+        if (filesize($filePath) <= 0) {
+            throw new Exception("File is empty after moving to temporary directory. The upload may have been corrupted.");
+        }
+
         $extension = pathinfo($fileName, PATHINFO_EXTENSION);
 
         if (strtolower($extension) === 'zip') {
@@ -446,5 +519,25 @@ class GitController extends BaseController
     protected function cleanupTempDirectory(string $tempDir): void
     {
         exec("rm -rf " . escapeshellarg($tempDir));
+    }
+
+    /**
+     * Get a human-readable error message for PHP file upload error codes.
+     *
+     * @param int $errorCode PHP file upload error code
+     * @return string Human-readable error message
+     */
+    protected function getUploadErrorMessage(int $errorCode): string
+    {
+        return match ($errorCode) {
+            UPLOAD_ERR_INI_SIZE => 'The uploaded file exceeds the upload_max_filesize directive in php.ini',
+            UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the MAX_FILE_SIZE directive in the HTML form',
+            UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded',
+            UPLOAD_ERR_NO_FILE => 'No file was uploaded',
+            UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder',
+            UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk',
+            UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload',
+            default => 'Unknown upload error',
+        };
     }
 }
