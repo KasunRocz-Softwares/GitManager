@@ -11,14 +11,14 @@ class RepositoryController extends Controller
     public function index()
     {
         if (!Auth::user()->is_admin) {
-            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'projects.name as project_name')
+            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'projects.name as project_name')
             ->leftJoin('user_repositories', 'user_repositories.repository_id', '=', 'repositories.id')
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
             ->where('user_repositories.user_id', Auth::user()->id)
             ->get();
             return response()->json($repositories);
         }
-        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'projects.name as project_name')
+        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'projects.name as project_name')
         ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
         ->get();
 
@@ -35,11 +35,17 @@ class RepositoryController extends Controller
         }
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
-            'name' => 'required|string|max:255',
+            'repository_name' => 'required|string|max:255',
             'repo_path' => 'required|string|max:255',
+            'access_url'=> 'nullable|string'
         ]);
 
-        $repository = Repository::create($validated);
+        $repository = Repository::create([
+            'project_id' => $validated['project_id'],
+            'name' => $validated['repository_name'],
+            'repo_path'=> $validated['repo_path'],
+            'access_url' => $validated['access_url'],
+        ]);
 
         return response()->json($repository, 201);
     }
@@ -61,12 +67,19 @@ class RepositoryController extends Controller
 
         $validated = $request->validate([
             'project_id' => 'sometimes|required|exists:projects,id',
-            'name' => 'sometimes|required|string|max:255',
+            'repository_name' => 'sometimes|required|string|max:255',
             'repo_path' => 'sometimes|required|string|max:255',
+            'access_url'=> 'nullable|string'
         ]);
 
         $repository = Repository::findOrFail($id);
-        $repository->update($validated);
+
+        $repository->update([
+            'project_id' => $validated['project_id'],
+            'name' => $validated['repository_name'],
+            'repo_path'=> $validated['repo_path'],
+            'access_url' => $validated['access_url'],
+        ]);
 
         return response()->json($repository);
     }

@@ -30,14 +30,18 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
         Route::post('/', 'store')->name('projects.store');
         Route::get('/{id}', 'show')->name('projects.show');
         Route::put('/{id}', 'update')->name('projects.update');
+        Route::put('/{id}/toggle-status', 'toggleProjectStatus');
         Route::delete('/{id}', 'destroy')->name('projects.destroy');
     });
 
     Route::controller(UserController::class)->middleware('auth:api')->prefix('users')
     ->group(function (){
-        Route::get('/',  'index')->name('user.index');
-        Route::post('/', 'store')->name('user.store');
-        Route::post('/repo/store', 'storeUserRepo')->name('user.repo.store');
+        Route::get('/',  'index');
+        Route::post('/', 'store');
+        Route::get('/{user}', 'getUser');
+        Route::put('/{user}', 'updateUser');
+        Route::put('/{user}/toggle-status', 'toggleUserStatus');
+        Route::post('/repo/store', 'storeUserRepo');
     });
 
  Route::controller(\App\Http\Controllers\GitController::class)

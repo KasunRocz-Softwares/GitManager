@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ProjectController extends Controller
 {
@@ -54,5 +56,27 @@ class ProjectController extends Controller
         $project->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function toggleProjectStatus(Request $request, $id)
+    {
+        if (!Auth::user()->is_admin) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+        $project = Project::findOrFail($id);
+        $project->is_active = $validated['is_active'];
+        $project->save();
+
+        return response()->json([
+            "success" => true,
+            "message" => "Project status updated successfully",
+        ]);
     }
 }
