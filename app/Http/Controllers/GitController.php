@@ -407,6 +407,26 @@ class GitController extends BaseController
             $this->extractArchiveFile($filePath, $extractPath, $extension);
         }
 
+        // Verify that files were actually extracted
+        $extractedFiles = scandir($extractPath);
+        $extractedFiles = array_diff($extractedFiles, ['.', '..']);
+
+        if (empty($extractedFiles)) {
+            Log::error("No files were extracted from the archive", [
+                'filePath' => $filePath,
+                'extractPath' => $extractPath,
+                'fileSize' => filesize($filePath),
+                'extension' => $extension
+            ]);
+            throw new Exception("No files were extracted from the archive. The archive may be empty or have an unexpected structure.");
+        }
+
+        Log::info("Successfully extracted files from archive", [
+            'filePath' => $filePath,
+            'extractPath' => $extractPath,
+            'fileCount' => count($extractedFiles)
+        ]);
+
         return $extractPath;
     }
 
@@ -492,23 +512,104 @@ class GitController extends BaseController
     }
 
     /**
-     * Build commands to update the dist folder.
-     * This method creates commands to remove the existing dist folder,
-     * create a new one, and copy the extracted files to it.
-     * No git operations are performed.
+     * Prepare the source directory for upload.
+     * This method identifies the directory containing the files to be uploaded.
      *
-     * @param string $branch Branch name (not used, kept for backward compatibility)
      * @param string $extractPath Path to extracted files
-     * @param string $commitMessage Commit message (not used, kept for backward compatibility)
-     * @return array Array of commands
+     * @return string Path to the directory containing files to upload
+     * @throws Exception If the extraction directory is empty or no files are found
      */
-    protected function buildDistFolderCommands(string $branch, string $extractPath, string $commitMessage): array
+    protected function prepareSourceDirectory(string $extractPath): string
     {
-        return [
-            "sudo rm -rf dist",  // Remove existing dist folder
-            "sudo mkdir -p dist", // Create new dist folder
-            "sudo cp -r " . escapeshellarg($extractPath) . "/* dist/" // Copy extracted files to dist folder
-        ];
+        // Check if the extraction directory exists and contains files
+        if (!file_exists($extractPath) || !is_dir($extractPath)) {
+            throw new Exception("Extraction directory does not exist: {$extractPath}");
+        }
+
+        // Get a list of files and directories in the extraction directory
+        $files = scandir($extractPath);
+        // Remove . and .. from the list
+        $files = array_diff($files, ['.', '..']);
+
+        if (empty($files)) {
+            Log::error("Extraction directory is empty", ['extractPath' => $extractPath]);
+            throw new Exception("Extraction directory is empty. The archive may not contain any files or the extraction process may have failed.");
+        }
+
+        // Log the files found in the extraction directory
+        Log::info("Files found in extraction directory", [
+            'extractPath' => $extractPath,
+            'fileCount' => count($files),
+            'files' => implode(', ', array_slice($files, 0, 10)) . (count($files) > 10 ? '...' : '')
+        ]);
+
+        // Check if there are files at the root level of the extraction directory
+        $hasRootFiles = false;
+        foreach ($files as $file) {
+            if (is_file($extractPath . '/' . $file)) {
+                $hasRootFiles = true;
+                break;
+            }
+        }
+
+        // If there are files at the root level, use the extraction directory as the source
+        if ($hasRootFiles) {
+            return $extractPath;
+        } else {
+            // If there are no files at the root level, but there are subdirectories,
+            // we need to find a directory that contains files
+            $subdirs = array_filter($files, function($file) use ($extractPath) {
+                return is_dir($extractPath . '/' . $file);
+            });
+
+            if (empty($subdirs)) {
+                Log::error("No files or subdirectories found in extraction directory", ['extractPath' => $extractPath]);
+                throw new Exception("No files or subdirectories found in extraction directory. The archive may be empty or have an unexpected structure.");
+            }
+
+            // Find the first directory that contains files (recursively if needed)
+            $sourceDir = $this->findDirectoryWithFiles($extractPath, $subdirs);
+
+            if (!$sourceDir) {
+                Log::error("No directory with files found in extraction directory", ['extractPath' => $extractPath]);
+                throw new Exception("No directory with files found in extraction directory. The archive may have an unexpected structure.");
+            }
+
+            Log::info("Using directory for dist folder", ['sourceDir' => $sourceDir]);
+            return $sourceDir;
+        }
+    }
+
+    /**
+     * Upload the dist folder to the repository server via SFTP.
+     * This method replaces the previous command-based approach with direct SFTP upload.
+     *
+     * @param string $extractPath Path to extracted files
+     * @return string Success message
+     * @throws Exception If upload fails
+     */
+    protected function uploadDistFolder(string $extractPath): string
+    {
+        // Prepare the source directory
+        $sourceDir = $this->prepareSourceDirectory($extractPath);
+
+        // Create a temporary dist directory on the remote server
+        $this->gitService->runCommand("sudo rm -rf dist");
+        $this->gitService->runCommand("sudo mkdir -p dist");
+
+        // Upload the files via SFTP
+        $remotePath = $this->gitService->runCommand("echo \$PWD") . "/dist";
+        $remotePath = trim($remotePath); // Remove any whitespace
+
+        Log::info("Uploading dist folder via SFTP", [
+            'sourceDir' => $sourceDir,
+            'remotePath' => $remotePath
+        ]);
+
+        // Upload the directory
+        $this->gitService->uploadDirectoryViaSFTP($sourceDir, $remotePath);
+
+        return "Dist folder uploaded successfully via SFTP";
     }
 
     /**
@@ -519,6 +620,61 @@ class GitController extends BaseController
     protected function cleanupTempDirectory(string $tempDir): void
     {
         exec("rm -rf " . escapeshellarg($tempDir));
+    }
+
+    /**
+     * Find a directory that contains files.
+     * This method recursively searches for a directory that contains files.
+     * It first checks if the given directories contain files directly.
+     * If not, it recursively checks their subdirectories.
+     *
+     * @param string $basePath Base path
+     * @param array $directories List of directory names to check
+     * @param int $maxDepth Maximum recursion depth (to prevent infinite recursion)
+     * @return string|null Path to the first directory that contains files, or null if none found
+     */
+    protected function findDirectoryWithFiles(string $basePath, array $directories, int $maxDepth = 5): ?string
+    {
+        if ($maxDepth <= 0) {
+            Log::warning("Maximum recursion depth reached while searching for directory with files", [
+                'basePath' => $basePath
+            ]);
+            return null;
+        }
+
+        foreach ($directories as $dir) {
+            $dirPath = $basePath . '/' . $dir;
+
+            // Check if this directory contains files
+            $dirContents = scandir($dirPath);
+            $dirContents = array_diff($dirContents, ['.', '..']);
+
+            $hasFiles = false;
+            foreach ($dirContents as $item) {
+                if (is_file($dirPath . '/' . $item)) {
+                    $hasFiles = true;
+                    break;
+                }
+            }
+
+            if ($hasFiles) {
+                return $dirPath;
+            }
+
+            // If this directory doesn't contain files directly, check its subdirectories
+            $subdirs = array_filter($dirContents, function($item) use ($dirPath) {
+                return is_dir($dirPath . '/' . $item);
+            });
+
+            if (!empty($subdirs)) {
+                $foundDir = $this->findDirectoryWithFiles($dirPath, $subdirs, $maxDepth - 1);
+                if ($foundDir) {
+                    return $foundDir;
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

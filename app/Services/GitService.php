@@ -4,6 +4,10 @@ namespace App\Services;
 
 use Exception;
 use phpseclib3\Net\SSH2;
+use phpseclib3\Net\SFTP;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Service for interacting with Git repositories via SSH.
@@ -165,5 +169,109 @@ class GitService
     public function currentBranch(): string
     {
         return $this->runCommand('sudo git branch --show-current');
+    }
+
+    /**
+     * Get SFTP connection.
+     *
+     * @return SFTP SFTP connection instance
+     * @throws Exception If SFTP connection fails
+     */
+    protected function getSFTPConnection(): SFTP
+    {
+        $sftp = new SFTP($this->sshHost);
+
+        if (!$sftp->login($this->sshUsername, $this->sshPassword)) {
+            throw new Exception("SFTP login failed for host: {$this->sshHost}, username: {$this->sshUsername}");
+        }
+
+        return $sftp;
+    }
+
+    /**
+     * Upload a directory to the remote server via SFTP.
+     *
+     * @param string $localPath Local path to the directory to upload
+     * @param string $remotePath Remote path where the directory should be uploaded
+     * @return bool True if upload was successful
+     * @throws Exception If upload fails
+     */
+    public function uploadDirectoryViaSFTP(string $localPath, string $remotePath): bool
+    {
+        try {
+            $sftp = $this->getSFTPConnection();
+
+            // Ensure the remote directory exists
+            $this->runCommand("mkdir -p " . escapeshellarg($remotePath));
+
+            // Log the upload operation
+            Log::info("Uploading directory via SFTP", [
+                'localPath' => $localPath,
+                'remotePath' => $remotePath
+            ]);
+
+            // Create a recursive iterator to traverse the directory
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($localPath, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            $uploadedFiles = 0;
+            $totalFiles = 0;
+
+            // Count total files first
+            foreach ($iterator as $item) {
+                if ($item->isFile()) {
+                    $totalFiles++;
+                }
+            }
+
+            // Reset iterator
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($localPath, RecursiveDirectoryIterator::SKIP_DOTS),
+                RecursiveIteratorIterator::SELF_FIRST
+            );
+
+            // Upload each file
+            foreach ($iterator as $item) {
+                $relativePath = substr($item->getPathname(), strlen($localPath) + 1);
+                $remoteFilePath = $remotePath . '/' . $relativePath;
+
+                if ($item->isDir()) {
+                    // Create directory on remote server
+                    $this->runCommand("mkdir -p " . escapeshellarg($remoteFilePath));
+                } else {
+                    // Upload file
+                    if ($sftp->put($remoteFilePath, $item->getPathname(), SFTP::SOURCE_LOCAL_FILE)) {
+                        $uploadedFiles++;
+
+                        // Log progress periodically
+                        if ($uploadedFiles % 10 === 0 || $uploadedFiles === $totalFiles) {
+                            Log::info("SFTP upload progress", [
+                                'uploaded' => $uploadedFiles,
+                                'total' => $totalFiles,
+                                'percentage' => round(($uploadedFiles / $totalFiles) * 100, 2) . '%'
+                            ]);
+                        }
+                    } else {
+                        throw new Exception("Failed to upload file: {$item->getPathname()} to {$remoteFilePath}");
+                    }
+                }
+            }
+
+            Log::info("SFTP upload completed successfully", [
+                'uploadedFiles' => $uploadedFiles,
+                'totalFiles' => $totalFiles
+            ]);
+
+            return true;
+        } catch (Exception $e) {
+            Log::error("SFTP upload failed: " . $e->getMessage(), [
+                'localPath' => $localPath,
+                'remotePath' => $remotePath,
+                'exception' => $e
+            ]);
+            throw $e;
+        }
     }
 }
