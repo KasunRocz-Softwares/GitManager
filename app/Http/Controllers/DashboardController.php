@@ -26,13 +26,13 @@ class DashboardController extends Controller
     }
     public function activityChart()
     {
-        $query = RepoActivityLog::whereDate('created_at', '>=', Carbon::now()->subDays(30));
+        $query = RepoActivityLog::whereDate('repo_activity_logs.created_at', '>=', Carbon::now()->subDays(30));
 
         if (!Auth::user()->is_admin) {
             $query->where('user_id', Auth::id());
 
             // For non-admin users, just return their own activity
-            $logs = $query->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+            $logs = $query->selectRaw('DATE(repo_activity_logs.created_at) as date, COUNT(*) as count')
                 ->groupBy('date')
                 ->orderBy('date', 'ASC')
                 ->get();
@@ -45,7 +45,7 @@ class DashboardController extends Controller
         }
 
         // For admin users, get activity grouped by user and date
-        $userLogs = RepoActivityLog::whereDate('created_at', '>=', Carbon::now()->subDays(30))
+        $userLogs = RepoActivityLog::whereDate('repo_activity_logs.created_at', '>=', Carbon::now()->subDays(30))
             ->join('users', 'repo_activity_logs.user_id', '=', 'users.id')
             ->selectRaw('DATE(repo_activity_logs.created_at) as date, users.name as user_name, users.id as user_id, COUNT(*) as count')
             ->groupBy('date', 'users.id', 'users.name')
@@ -59,7 +59,7 @@ class DashboardController extends Controller
         $users = $userLogs->pluck('user_name', 'user_id')->unique()->all();
 
         // Get total activity per date (for the main chart)
-        $totalLogs = $query->selectRaw('DATE(created_at) as date, COUNT(*) as count')
+        $totalLogs = $query->selectRaw('DATE(repo_activity_logs.created_at) as date, COUNT(*) as count')
             ->groupBy('date')
             ->orderBy('date', 'ASC')
             ->get();
