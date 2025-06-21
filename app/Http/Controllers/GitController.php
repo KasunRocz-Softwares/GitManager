@@ -8,6 +8,7 @@ use App\Models\Repository;
 use App\Services\GitService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 #[AllowDynamicProperties] class GitController extends Controller
 {
@@ -64,6 +65,17 @@ use Illuminate\Support\Facades\Auth;
         }
 
         try {
+            foreach ($commands as $command) {
+                $response = Http::withToken(env('AI_ACCESS_TOKEN'))
+                    ->post(env('AI_BASE_URL') . '/git_manager_guard', [
+                        'command' => $command,
+                    ]);
+                $aiResult = $response->json();
+                if (!empty($aiResult['data']['is_risk']) && $aiResult['data']['is_risk'] === true) {
+                    return response()->json(['error' => $aiResult['data']['reason'] ?? 'Unknown',], 500);
+                }
+            }
+
             $output = $this->gitService->runMultipleCommands($commands);
             return response()->json(['message' => $output], 200);
         } catch (\Exception $e) {
