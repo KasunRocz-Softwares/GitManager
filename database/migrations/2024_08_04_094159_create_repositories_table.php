@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('repositories', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('project_id');
+            $table->unsignedBigInteger('project_id');
             $table->foreign('project_id')->references('id')->on('projects')->onDelete('cascade');
             $table->string('name');
             $table->string('repo_path');
