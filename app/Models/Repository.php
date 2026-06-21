@@ -13,4 +13,9 @@ class Repository extends Model
     {
         return $this->belongsTo(Project::class);
     }
+
+    public function users(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'user_repositories');
+    }
 }
