@@ -9,9 +9,16 @@ use Illuminate\Support\Facades\Auth;
 
 class ProjectController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $projects = Project::with('repositories')->get();
+        $query = Project::with('repositories');
+        $paginate = $request->input('paginate') ?? $_GET['paginate'] ?? null;
+        if ($paginate === 'true') {
+            $perPage = $request->input('per_page') ?? $_GET['per_page'] ?? 10;
+            $page = $request->input('page') ?? $_GET['page'] ?? 1;
+            return response()->json($query->paginate($perPage, ['*'], 'page', $page));
+        }
+        $projects = $query->get();
         return response()->json($projects);
     }
 

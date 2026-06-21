@@ -11,8 +11,14 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $paginate = $request->input('paginate') ?? $_GET['paginate'] ?? null;
+        if ($paginate === 'true') {
+            $perPage = $request->input('per_page') ?? $_GET['per_page'] ?? 10;
+            $page = $request->input('page') ?? $_GET['page'] ?? 1;
+            return response()->json(User::paginate($perPage, ['*'], 'page', $page));
+        }
         $users = User::all();
         return response()->json([
             "users" => $users,
