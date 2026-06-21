@@ -20,6 +20,14 @@ use Illuminate\Support\Facades\Http;
     protected function initializeGitService($repoId): void
     {
         $repository = Repository::with('project')->findOrFail($repoId);
+
+        if (!Auth::user()->is_admin) {
+            $hasAccess = $repository->users()->where('users.id', Auth::user()->id)->exists();
+            if (!$hasAccess || !$repository->is_active) {
+                abort(403, 'Access denied');
+            }
+        }
+
         $project = $repository->project;
 
         $sshHost = $project->host;

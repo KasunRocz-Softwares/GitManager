@@ -11,14 +11,15 @@ class RepositoryController extends Controller
     public function index()
     {
         if (!Auth::user()->is_admin) {
-            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'projects.name as project_name')
+            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
             ->leftJoin('user_repositories', 'user_repositories.repository_id', '=', 'repositories.id')
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
             ->where('user_repositories.user_id', Auth::user()->id)
+            ->where('repositories.is_active', 1)
             ->get();
             return response()->json($repositories);
         }
-        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'projects.name as project_name')
+        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
         ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
         ->get();
 
@@ -53,6 +54,15 @@ class RepositoryController extends Controller
     public function show($id)
     {
         $repository = Repository::with('project')->findOrFail($id);
+        if (!Auth::user()->is_admin) {
+            $hasAccess = $repository->users()->where('users.id', Auth::user()->id)->exists();
+            if (!$hasAccess || !$repository->is_active) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "Access denied"
+                ], 403);
+            }
+        }
         return response()->json($repository);
     }
 
@@ -96,5 +106,28 @@ class RepositoryController extends Controller
         $repository->delete();
 
         return response()->json(null, 204);
+    }
+
+    public function toggleRepositoryStatus(Request $request, $id)
+    {
+        if (!Auth::user()->is_admin) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'is_active' => 'required|boolean',
+        ]);
+        
+        $repository = Repository::findOrFail($id);
+        $repository->is_active = $validated['is_active'];
+        $repository->save();
+
+        return response()->json([
+            "success" => true,
+            "message" => "Repository status updated successfully",
+        ]);
     }
 }

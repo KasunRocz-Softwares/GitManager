@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Repository extends Model
 {
-    protected $fillable = ['project_id', 'name', 'repo_path', 'access_url'];
+    protected $fillable = ['project_id', 'name', 'repo_path', 'access_url', 'is_active'];
 
     public function project(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
