@@ -11,14 +11,14 @@ class RepositoryController extends Controller
     public function index()
     {
         if (!Auth::user()->is_admin) {
-            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'projects.name as project_name')
+            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'projects.name as project_name')
             ->leftJoin('user_repositories', 'user_repositories.repository_id', '=', 'repositories.id')
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
             ->where('user_repositories.user_id', Auth::user()->id)
             ->get();
             return response()->json($repositories);
         }
-        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'projects.name as project_name')
+        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'projects.name as project_name')
         ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
         ->get();
 
