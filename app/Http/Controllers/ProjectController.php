@@ -12,6 +12,20 @@ class ProjectController extends Controller
     public function index(Request $request)
     {
         $query = Project::with('repositories');
+
+        if ($request->has('search') && !empty($request->input('search'))) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('host', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->has('is_active') && $request->input('is_active') !== 'all') {
+            $status = $request->input('is_active') === 'active' ? 1 : 0;
+            $query->where('is_active', $status);
+        }
+
         $paginate = $request->input('paginate') ?? $_GET['paginate'] ?? null;
         if ($paginate === 'true') {
             $perPage = $request->input('per_page') ?? $_GET['per_page'] ?? 10;
