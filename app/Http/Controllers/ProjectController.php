@@ -11,6 +11,13 @@ class ProjectController extends Controller
 {
     public function index(Request $request)
     {
+        if (!$request->user()->can('view_projects')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $query = Project::with('repositories');
 
         if ($request->has('search') && !empty($request->input('search'))) {
@@ -38,6 +45,13 @@ class ProjectController extends Controller
 
     public function store(Request $request)
     {
+        if (!$request->user()->can('create_projects')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'username' => 'required|string|max:255',
@@ -50,14 +64,28 @@ class ProjectController extends Controller
         return response()->json($project, 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        if (!$request->user()->can('view_projects')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $project = Project::with('repositories')->findOrFail($id);
         return response()->json($project);
     }
 
     public function update(Request $request, $id)
     {
+        if (!$request->user()->can('edit_projects')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'sometimes|required|string|max:255',
             'username' => 'sometimes|required|string|max:255',
@@ -71,8 +99,15 @@ class ProjectController extends Controller
         return response()->json($project);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        if (!$request->user()->can('delete_projects')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $project = Project::findOrFail($id);
         $project->delete();
 
@@ -81,7 +116,7 @@ class ProjectController extends Controller
 
     public function toggleProjectStatus(Request $request, $id)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('edit_projects')) {
             return response()->json([
                 "success" => false,
                 "message" => "Access denied"

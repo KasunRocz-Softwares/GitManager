@@ -45,6 +45,11 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
         Route::post('/repo/store', 'storeUserRepo');
     });
 
+    Route::middleware('auth:api')->group(function () {
+        Route::apiResource('roles', \App\Http\Controllers\RoleController::class);
+        Route::get('permissions', [\App\Http\Controllers\PermissionController::class, 'index']);
+    });
+
  Route::controller(\App\Http\Controllers\GitController::class)
     ->middleware('auth:api')
      ->prefix('repositories/{repoId}/git')
@@ -54,4 +59,5 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
          Route::post('run-commands','runMultipleCommands');
          Route::get('current-branch','currentBranch');
      });
+
 

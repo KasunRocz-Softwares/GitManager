@@ -8,17 +8,26 @@ use Illuminate\Support\Facades\Auth;
 
 class RepositoryController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('view_repositories')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
+        // Super Admin and Admin can see all repositories. Others see only their assigned and active ones.
+        if (!$request->user()->hasAnyRole(['Super Admin', 'Admin'])) {
             $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
             ->leftJoin('user_repositories', 'user_repositories.repository_id', '=', 'repositories.id')
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
-            ->where('user_repositories.user_id', Auth::user()->id)
+            ->where('user_repositories.user_id', $request->user()->id)
             ->where('repositories.is_active', 1)
             ->get();
             return response()->json($repositories);
         }
+
         $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
         ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
         ->get();
@@ -28,7 +37,7 @@ class RepositoryController extends Controller
 
     public function store(Request $request)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('create_repositories')) {
             return response()->json([
                 "success" => false,
                 "message" => "Access denied"
@@ -51,11 +60,19 @@ class RepositoryController extends Controller
         return response()->json($repository, 201);
     }
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
+        if (!$request->user()->can('view_repositories')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $repository = Repository::with('project')->findOrFail($id);
-        if (!Auth::user()->is_admin) {
-            $hasAccess = $repository->users()->where('users.id', Auth::user()->id)->exists();
+
+        if (!$request->user()->hasAnyRole(['Super Admin', 'Admin'])) {
+            $hasAccess = $repository->users()->where('users.id', $request->user()->id)->exists();
             if (!$hasAccess || !$repository->is_active) {
                 return response()->json([
                     "success" => false,
@@ -68,7 +85,7 @@ class RepositoryController extends Controller
 
     public function update(Request $request, $id)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('edit_repositories')) {
             return response()->json([
                 "success" => false,
                 "message" => "Access denied"
@@ -85,18 +102,18 @@ class RepositoryController extends Controller
         $repository = Repository::findOrFail($id);
 
         $repository->update([
-            'project_id' => $validated['project_id'],
-            'name' => $validated['repository_name'],
-            'repo_path'=> $validated['repo_path'],
-            'access_url' => $validated['access_url'],
+            'project_id' => $validated['project_id'] ?? $repository->project_id,
+            'name' => $validated['repository_name'] ?? $repository->name,
+            'repo_path'=> $validated['repo_path'] ?? $repository->repo_path,
+            'access_url' => $validated['access_url'] ?? $repository->access_url,
         ]);
 
         return response()->json($repository);
     }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('delete_repositories')) {
             return response()->json([
                 "success" => false,
                 "message" => "Access denied"
@@ -110,7 +127,7 @@ class RepositoryController extends Controller
 
     public function toggleRepositoryStatus(Request $request, $id)
     {
-        if (!Auth::user()->is_admin) {
+        if (!$request->user()->can('edit_repositories')) {
             return response()->json([
                 "success" => false,
                 "message" => "Access denied"

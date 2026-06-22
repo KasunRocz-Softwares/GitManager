@@ -38,10 +38,21 @@ class AuthController extends Controller
             $user = Auth::user();
             $token = $user->createToken('MyAppToken')->accessToken;
 
+            $role = $user->roles()->first()?->name ?? 'User';
+            $permissions = $user->hasRole('Super Admin')
+                ? \Spatie\Permission\Models\Permission::pluck('name')->toArray()
+                : $user->getAllPermissions()->pluck('name')->toArray();
+
+            $userArray = $user->toArray();
+            $userArray['role'] = $role;
+            $userArray['permissions'] = $permissions;
+            // Keep is_admin for brief backwards compatibility or fallback checks
+            $userArray['is_admin'] = $user->hasRole('Super Admin');
+
             return response()->json([
                 'success' => true,
                 'token' => $token,
-                'user' => $user,
+                'user' => $userArray,
             ], 200);
         }else{
             return response()->json([

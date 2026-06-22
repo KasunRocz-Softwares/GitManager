@@ -12,8 +12,15 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    public function dashboard()
+    public function dashboard(Request $request)
     {
+        if (!$request->user()->can('view_dashboard')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $repoCount = Repository::count();
         $projectCount = Project::count();
         $userCount = User::count();
@@ -34,7 +41,7 @@ class DashboardController extends Controller
         $query = RepoActivityLog::query();
 
         // Apply User Filter
-        if (Auth::user()->is_admin) {
+        if (Auth::user()->can('view_users')) {
             if ($userId && $userId !== 'all') {
                 $query->where('repo_activity_logs.user_id', $userId);
             }

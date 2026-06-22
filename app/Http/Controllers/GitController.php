@@ -21,7 +21,8 @@ use Illuminate\Support\Facades\Http;
     {
         $repository = Repository::with('project')->findOrFail($repoId);
 
-        if (!Auth::user()->is_admin) {
+        // Super Admin and Admin have access to all repositories. Others must be assigned.
+        if (!Auth::user()->hasAnyRole(['Super Admin', 'Admin'])) {
             $hasAccess = $repository->users()->where('users.id', Auth::user()->id)->exists();
             if (!$hasAccess || !$repository->is_active) {
                 abort(403, 'Access denied');
@@ -38,8 +39,15 @@ use Illuminate\Support\Facades\Http;
         $this->gitService = new GitService($sshHost, $sshUsername, $sshPassword, $repoPath);
     }
 
-    public function listBranches($repoId): \Illuminate\Http\JsonResponse
+    public function listBranches(Request $request, $repoId): \Illuminate\Http\JsonResponse
     {
+        if (!$request->user()->can('view_branches')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $this->initializeGitService($repoId);
 
         try {
@@ -52,6 +60,13 @@ use Illuminate\Support\Facades\Http;
 
     public function checkoutBranch(Request $request, $repoId): \Illuminate\Http\JsonResponse
     {
+        if (!$request->user()->can('checkout_branch')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $this->initializeGitService($repoId);
         $branchName = $request->input('branch_name');
         RepoActivityLog::makeRepoLogs(Auth::id(), $repoId, 'git-checkout', $branchName);
@@ -65,6 +80,13 @@ use Illuminate\Support\Facades\Http;
 
     public function runMultipleCommands(Request $request, $repoId)
     {
+        if (!$request->user()->can('run_git_commands')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $this->initializeGitService($repoId);
         $commands = $request->input('commands');
         RepoActivityLog::makeRepoLogs(Auth::id(), $repoId, 'run-command', json_encode($commands));
@@ -91,8 +113,15 @@ use Illuminate\Support\Facades\Http;
         }
     }
 
-    public function currentBranch($repoId): \Illuminate\Http\JsonResponse
+    public function currentBranch(Request $request, $repoId): \Illuminate\Http\JsonResponse
     {
+        if (!$request->user()->can('view_branches')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
         $this->initializeGitService($repoId);
         try {
             $branches = $this->gitService->currentBranch();
