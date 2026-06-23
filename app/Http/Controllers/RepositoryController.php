@@ -19,7 +19,7 @@ class RepositoryController extends Controller
 
         // Super Admin and Admin can see all repositories. Others see only their assigned and active ones.
         if (!$request->user()->hasAnyRole(['Super Admin', 'Admin'])) {
-            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
+            $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'repositories.pipeline_id', 'projects.name as project_name')
             ->leftJoin('user_repositories', 'user_repositories.repository_id', '=', 'repositories.id')
             ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
             ->where('user_repositories.user_id', $request->user()->id)
@@ -28,7 +28,7 @@ class RepositoryController extends Controller
             return response()->json($repositories);
         }
 
-        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'projects.name as project_name')
+        $repositories = Repository::select('repositories.id', 'repositories.name as repository_name', 'repositories.access_url', 'repositories.project_id', 'repositories.is_active', 'repositories.pipeline_id', 'projects.name as project_name')
         ->leftJoin('projects', 'projects.id', '=', 'repositories.project_id')
         ->get();
 
@@ -47,7 +47,8 @@ class RepositoryController extends Controller
             'project_id' => 'required|exists:projects,id',
             'repository_name' => 'required|string|max:255',
             'repo_path' => 'required|string|max:255',
-            'access_url'=> 'nullable|string'
+            'access_url'=> 'nullable|string',
+            'pipeline_id'=> 'nullable|exists:pipelines,id',
         ]);
 
         $repository = Repository::create([
@@ -55,6 +56,7 @@ class RepositoryController extends Controller
             'name' => $validated['repository_name'],
             'repo_path'=> $validated['repo_path'],
             'access_url' => $validated['access_url'],
+            'pipeline_id' => $validated['pipeline_id'] ?? null,
         ]);
 
         return response()->json($repository, 201);
@@ -69,7 +71,7 @@ class RepositoryController extends Controller
             ], 403);
         }
 
-        $repository = Repository::with('project')->findOrFail($id);
+        $repository = Repository::with(['project', 'pipeline'])->findOrFail($id);
 
         if (!$request->user()->hasAnyRole(['Super Admin', 'Admin'])) {
             $hasAccess = $repository->users()->where('users.id', $request->user()->id)->exists();
@@ -96,7 +98,8 @@ class RepositoryController extends Controller
             'project_id' => 'sometimes|required|exists:projects,id',
             'repository_name' => 'sometimes|required|string|max:255',
             'repo_path' => 'sometimes|required|string|max:255',
-            'access_url'=> 'nullable|string'
+            'access_url'=> 'nullable|string',
+            'pipeline_id'=> 'nullable|exists:pipelines,id',
         ]);
 
         $repository = Repository::findOrFail($id);
@@ -106,6 +109,7 @@ class RepositoryController extends Controller
             'name' => $validated['repository_name'] ?? $repository->name,
             'repo_path'=> $validated['repo_path'] ?? $repository->repo_path,
             'access_url' => $validated['access_url'] ?? $repository->access_url,
+            'pipeline_id' => array_key_exists('pipeline_id', $validated) ? $validated['pipeline_id'] : $repository->pipeline_id,
         ]);
 
         return response()->json($repository);

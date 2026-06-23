@@ -18,6 +18,7 @@ Route::controller(\App\Http\Controllers\Auth\AuthController::class)->group(funct
 
 Route::middleware('auth:api')->put('repositories/{id}/toggle-status', [RepositoryController::class, 'toggleRepositoryStatus']);
 Route::middleware('auth:api')->apiResource('repositories', RepositoryController::class);
+Route::middleware('auth:api')->apiResource('pipelines', \App\Http\Controllers\PipelineController::class);
 
 Route::controller(DashboardController::class)->middleware('auth:api')->prefix('dashboard')
 ->group(function (){

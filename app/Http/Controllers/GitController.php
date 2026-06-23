@@ -95,14 +95,16 @@ use Illuminate\Support\Facades\Http;
         }
 
         try {
-            foreach ($commands as $command) {
-                $response = Http::withToken(env('AI_ACCESS_TOKEN'))
-                    ->post(env('AI_BASE_URL') . '/git_manager_guard', [
-                        'command' => $command,
-                    ]);
-                $aiResult = $response->json();
-                if (!empty($aiResult['data']['is_risk']) && $aiResult['data']['is_risk'] === true) {
-                    return response()->json(['error' => $aiResult['data']['reason'] ?? 'Unknown',], 500);
+            if(env('AI_IS_ACTIVE', false)) {
+                foreach ($commands as $command) {
+                    $response = Http::withToken(env('AI_ACCESS_TOKEN'))
+                        ->post(env('AI_BASE_URL') . '/git_manager_guard', [
+                            'command' => $command,
+                        ]);
+                    $aiResult = $response->json();
+                    if (!empty($aiResult['data']['is_risk']) && $aiResult['data']['is_risk'] === true) {
+                        return response()->json(['error' => $aiResult['data']['reason'] ?? 'Unknown',], 500);
+                    }
                 }
             }
 
