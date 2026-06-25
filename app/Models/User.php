@@ -14,6 +14,13 @@ class User extends Authenticatable
     use Notifiable, HasRoles, HasApiTokens, HasFactory;
 
     /**
+     * Force Spatie Laravel Permission to use the 'web' guard.
+     *
+     * @var string
+     */
+    protected $guard_name = 'web';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
