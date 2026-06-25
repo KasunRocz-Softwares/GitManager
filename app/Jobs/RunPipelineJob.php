@@ -17,8 +17,6 @@ class RunPipelineJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $queue = 'run-pipeline-job';
-
     protected $runId;
 
     /**
@@ -27,6 +25,7 @@ class RunPipelineJob implements ShouldQueue
     public function __construct($runId)
     {
         $this->runId = $runId;
+        $this->queue = 'run-pipeline-job';
     }
 
     /**
