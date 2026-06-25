@@ -56,6 +56,23 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
     Route::middleware('auth:api')->group(function () {
         Route::apiResource('roles', \App\Http\Controllers\RoleController::class);
         Route::get('permissions', [\App\Http\Controllers\PermissionController::class, 'index']);
+        Route::get('profile', function (Request $request) {
+            $user = $request->user();
+            $role = $user->roles()->first()?->name ?? 'User';
+            $permissions = $user->hasRole('Super Admin')
+                ? \Spatie\Permission\Models\Permission::pluck('name')->toArray()
+                : $user->getAllPermissions()->pluck('name')->toArray();
+
+            $userArray = $user->toArray();
+            $userArray['role'] = $role;
+            $userArray['permissions'] = $permissions;
+            $userArray['is_admin'] = $user->hasRole('Super Admin');
+
+            return response()->json([
+                'success' => true,
+                'user' => $userArray,
+            ]);
+        });
     });
 
  Route::controller(\App\Http\Controllers\GitController::class)
