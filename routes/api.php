@@ -20,6 +20,12 @@ Route::middleware('auth:api')->put('repositories/{id}/toggle-status', [Repositor
 Route::middleware('auth:api')->apiResource('repositories', RepositoryController::class);
 Route::middleware('auth:api')->apiResource('pipelines', \App\Http\Controllers\PipelineController::class);
 
+Route::middleware('auth:api')->group(function () {
+    Route::post('repositories/{repoId}/run-pipeline', [\App\Http\Controllers\PipelineRunController::class, 'runPipeline']);
+    Route::get('repositories/{repoId}/latest-pipeline-run', [\App\Http\Controllers\PipelineRunController::class, 'latestRun']);
+    Route::get('pipeline-runs/{id}', [\App\Http\Controllers\PipelineRunController::class, 'show']);
+});
+
 Route::controller(DashboardController::class)->middleware('auth:api')->prefix('dashboard')
 ->group(function (){
     Route::get('/','dashboard');
