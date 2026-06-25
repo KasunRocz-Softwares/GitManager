@@ -23,6 +23,7 @@ Route::middleware('auth:api')->apiResource('pipelines', \App\Http\Controllers\Pi
 Route::middleware('auth:api')->group(function () {
     Route::post('repositories/{repoId}/run-pipeline', [\App\Http\Controllers\PipelineRunController::class, 'runPipeline']);
     Route::get('repositories/{repoId}/latest-pipeline-run', [\App\Http\Controllers\PipelineRunController::class, 'latestRun']);
+    Route::get('repositories/{repoId}/pipeline-runs', [\App\Http\Controllers\PipelineRunController::class, 'index']);
     Route::get('pipeline-runs/{id}', [\App\Http\Controllers\PipelineRunController::class, 'show']);
 });
 

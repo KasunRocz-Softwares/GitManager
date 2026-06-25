@@ -38,6 +38,7 @@ class RolesAndPermissionsSeeder extends Seeder
                 'create_pipelines' => 'Create new pipelines',
                 'edit_pipelines' => 'Edit existing pipelines',
                 'delete_pipelines' => 'Delete pipelines',
+                'view_pipeline_history' => 'View pipeline runs execution history',
             ],
             'Git Operations' => [
                 'view_branches' => 'View Git branches',
@@ -87,6 +88,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'view_repositories',
             'view_branches',
             'view_pipelines',
+            'view_pipeline_history',
         ]);
     }
 }

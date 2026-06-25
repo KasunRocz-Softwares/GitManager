@@ -12,6 +12,50 @@ use Illuminate\Support\Facades\Redis;
 class PipelineRunController extends Controller
 {
     /**
+     * Get all pipeline runs for a repository.
+     */
+    public function index(Request $request, $repoId)
+    {
+        if (!$request->user()->can('view_pipeline_history')) {
+            return response()->json([
+                "success" => false,
+                "message" => "Access denied"
+            ], 403);
+        }
+
+        $repository = Repository::findOrFail($repoId);
+
+        // Access Control Check
+        if (!Auth::user()->hasAnyRole(['Super Admin', 'Admin'])) {
+            $hasAccess = $repository->users()->where('users.id', Auth::user()->id)->exists();
+            if (!$hasAccess || !$repository->is_active) {
+                return response()->json([
+                    "success" => false,
+                    "message" => "Access denied"
+                ], 403);
+            }
+        }
+
+        $runs = PipelineRun::with(['pipeline', 'user'])
+            ->where('repository_id', $repoId)
+            ->latest()
+            ->get();
+
+        // Eager load current running logs from Redis if active
+        foreach ($runs as $run) {
+            if ($run->status === 'pending' || $run->status === 'running') {
+                $redisKey = 'pipeline_run:' . $run->id . ':logs';
+                $redisLogs = Redis::get($redisKey);
+                if ($redisLogs !== null) {
+                    $run->logs = $redisLogs;
+                }
+            }
+        }
+
+        return response()->json($runs);
+    }
+
+    /**
      * Trigger a new pipeline execution for a repository.
      */
     public function runPipeline(Request $request, $repoId)

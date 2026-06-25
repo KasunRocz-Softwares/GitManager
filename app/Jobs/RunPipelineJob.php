@@ -17,6 +17,8 @@ class RunPipelineJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public $queue = 'run-pipeline-job';
+
     protected $runId;
 
     /**
