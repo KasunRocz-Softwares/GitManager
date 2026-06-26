@@ -73,6 +73,13 @@ Route::controller(ProjectController::class)->middleware('auth:api')->prefix('pro
                 'user' => $userArray,
             ]);
         });
+
+        Route::put('profile', [\App\Http\Controllers\ProfileController::class, 'updateProfile']);
+        Route::put('profile/security', [\App\Http\Controllers\ProfileController::class, 'updatePassword']);
+        Route::post('profile/support', [\App\Http\Controllers\ProfileController::class, 'createSupportTicket']);
+        Route::get('profile/support', [\App\Http\Controllers\ProfileController::class, 'indexSupportTickets']);
+        Route::get('support-tickets', [\App\Http\Controllers\ProfileController::class, 'indexAllSupportTickets']);
+        Route::put('support-tickets/{id}/status', [\App\Http\Controllers\ProfileController::class, 'updateSupportTicketStatus']);
     });
 
  Route::controller(\App\Http\Controllers\GitController::class)

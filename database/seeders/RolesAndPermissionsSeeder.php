@@ -57,6 +57,10 @@ class RolesAndPermissionsSeeder extends Seeder
                 'edit_roles' => 'Edit role permissions',
                 'delete_roles' => 'Delete roles',
             ],
+            'Support Tickets' => [
+                'view_support_tickets' => 'View all users support tickets',
+                'manage_support_tickets' => 'Update status and manage all support tickets',
+            ],
         ];
 
         // Seed permissions
